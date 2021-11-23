@@ -1,4 +1,4 @@
-import type {LinksFunction, LoaderFunction} from "remix";
+import type {LinksFunction, LoaderFunction, RouteHandle} from "remix";
 import {
     Meta,
     Links,
@@ -10,9 +10,12 @@ import {
 import {Outlet} from "react-router-dom";
 
 import stylesUrl from "./styles/global.css";
-import {i18n} from "./lib/i18n.server";
-import {useRemixI18Next} from "remix-i18next";
 import {useTranslation} from "react-i18next";
+import {RemixI18NextScript} from "./remix-i18next";
+
+export let handle: RouteHandle = {
+    i18nextNs: "common"
+} 
 
 export let links: LinksFunction = () => {
     return [{rel: "stylesheet", href: stylesUrl}];
@@ -21,8 +24,6 @@ export let links: LinksFunction = () => {
 export let loader: LoaderFunction = async ({request}) => {
     return {
         date: new Date(),
-        locale: await i18n.getLocale(request),
-        i18n: await i18n.getTranslations(request, ["common"]),
     };
 };
 
@@ -44,6 +45,7 @@ function Document({
         </head>
         <body>
         {children}
+        <RemixI18NextScript />
         <Scripts/>
         {process.env.NODE_ENV === "development" && <LiveReload/>}
         </body>
@@ -53,7 +55,7 @@ function Document({
 
 export default function App() {
     let data = useLoaderData();
-    useRemixI18Next(data.locale);
+    
     const {t} = useTranslation("common")
 
     return (

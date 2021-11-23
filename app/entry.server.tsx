@@ -1,9 +1,8 @@
 import ReactDOMServer from "react-dom/server";
 import type {EntryContext} from "remix";
 import {RemixServer} from "remix";
-import i18next from "i18next";
-import {initReactI18next} from "react-i18next";
-import { RemixI18NextProvider } from "remix-i18next";
+import {backend} from "./lib/i18n.server";
+import {createServerInstance, RemixI18NextProvider} from "./remix-i18next";
 
 export default async function handleRequest(
     request: Request,
@@ -11,18 +10,14 @@ export default async function handleRequest(
     responseHeaders: Headers,
     remixContext: EntryContext
 ) {
-    await i18next.use(initReactI18next)
-        .init({
-            supportedLngs: ["en", "fr"],
-            defaultNS: "common",
-            fallbackLng: "en",
-            react: {
-                useSuspense: false
-            }
-        })
-
+    console.debug("start server handleRequest")
+    
+    const { i18n, language } = await createServerInstance(request, remixContext, {
+        backend: backend
+    });
+    
     let markup = ReactDOMServer.renderToString(
-        <RemixI18NextProvider i18n={i18next}>
+        <RemixI18NextProvider i18n={i18n} language={language}>
             <RemixServer context={remixContext} url={request.url}/>
         </RemixI18NextProvider>
     );

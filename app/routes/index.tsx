@@ -1,10 +1,12 @@
 import type {MetaFunction, LinksFunction, LoaderFunction} from "remix";
-import {useLoaderData} from "remix";
 import {Link} from "react-router-dom";
 
 import stylesUrl from "../styles/index.css";
-import {i18n} from "../lib/i18n.server";
 import {useTranslation} from "react-i18next";
+
+export let handle = {
+    i18nextNs: ["common", "users"]
+}
 
 export let meta: MetaFunction = () => {
     return {
@@ -15,10 +17,6 @@ export let meta: MetaFunction = () => {
 
 export let links: LinksFunction = () => {
     return [{rel: "stylesheet", href: stylesUrl}];
-};
-
-export let loader: LoaderFunction = async ({ request }) => {
-    return {i18n: await i18n.getTranslations(request, ["common", "users"])};
 };
 
 export default function Index() {
