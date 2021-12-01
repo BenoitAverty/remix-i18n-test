@@ -1,7 +1,9 @@
-import {createContext, ReactNode, useContext, useEffect} from "react";
+import {createContext, ReactNode, useContext, useEffect, useRef} from "react";
 import {i18n} from "i18next";
 import {I18nextProvider} from "react-i18next";
-import {useMatches} from "remix";
+import {useMatches, useTransition} from "remix";
+import {matchClientRoutes} from "@remix-run/react/routeMatching";
+import {createClientRoutes} from "@remix-run/react/routes";
 
 const context = createContext<{ i18n: i18n, language: string } | null>(null);
 
@@ -38,14 +40,38 @@ export function RemixI18NextScript() {
     let remixI18nextContext = useContext(context);
     if (!remixI18nextContext) throw new Error("Missing locale or I18Next instance")
     const {i18n, language} = remixI18nextContext;
-    const data = i18n.getDataByLanguage(language)
-
-    let matches = useMatches();
+    const data = i18n.getDataByLanguage(language);
+    
+    // Save route ids for which translations are loaded
+    const fetchedTranslationsRouteId = useRef<string[]>(typeof window != "undefined" ? window.__remixContext.matches.map(m => m.route.id) : [])
+    
+    const nextLocation = useTransition().location?.pathname;
     useEffect(() => {
-        let newNamespaces = matches.flatMap(m => m.handle?.i18nextNs ?? [])
-        i18n.loadNamespaces(newNamespaces);
-    }, [matches])
+        if(nextLocation) {
+            let clientRoutes = createClientRoutes(window.__remixManifest.routes, window.__remixContext.routeModules, () => null);
+            let nextMatches = matchClientRoutes(clientRoutes, nextLocation);
+            const nextRoutesIds: string[] = nextMatches?.map(match => match.route.id) ?? []
+            console.log(nextRoutesIds)
+            
+            const requests = nextRoutesIds
+                .filter(id => !fetchedTranslationsRouteId.current.includes(id))
+                .map(id => 
+                    fetch(`/i18n/${language}/${encodeURIComponent(id)}`)
+                        .then(resp => resp.json())
+                        .then(translations => {
+                            Object.entries(translations).forEach(([ns, bundle]) => {
+                                i18n.addResourceBundle(language, ns, bundle, true, true);
+                            })
+                            fetchedTranslationsRouteId.current.push(id)
+                        })
+                );
+            
+            Promise.all(requests).then(() => i18n.changeLanguage(language));
+        }
+    }, [nextLocation])
 
-    return (
-        <script type="text/javascript" dangerouslySetInnerHTML={{__html: `window.__i18nextBundle = ${JSON.stringify({data, language})}`}}/>)
+    return (<script 
+        type="text/javascript" 
+        dangerouslySetInnerHTML={{__html: `window.__i18nextBundle = ${JSON.stringify({data, language})}`}}
+    />)
 }

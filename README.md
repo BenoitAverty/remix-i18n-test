@@ -28,7 +28,7 @@ There is also a problem related to developer experience : code for i18n must be 
 
 ## An attempt at a solution
 
-My experiment is located in the `custom-i18next-solution` branch. The code that would be extracted into a package is the `app/remix-i18next` folder.
+My experiment can be found in the `custom-i18next-solution` branch. The code that would be extracted into a package is the `app/remix-i18next` folder.
 
 The above problems are all related to the fact that translations are retrieved in the loaders. This is the fundamental problem in my opinion : **translations data is not application data**. It doesn't have the same lifecycle (changes leff often) and the freshness requirements are not thez same (most of the time, it's ok to have some stale translations until the next refresh).
 
@@ -42,27 +42,24 @@ So I've implemented the following strategy :
 
 ## Problems
 
-My solution *almost* works. If you run the app, you'll se that my solution doesn't retrieve duplicate translations during SSR and doesnt't fetch translations that were already loader during client side navigation.
+My solution *almost* works. If you run the app, you'll se that my solution doesn't retrieve duplicate translations during SSR and doesnt't fetch translations that were already loaded during client side navigation.
 
-However there is an important limitation. This is because there is currently no way in remix to get the handles of the **next** route modules of a client side navigation (because the js bundles of those route modules may not be downloaded yet), and on the server side there is no way (or maybe a very hacky way) to get the handles of route modules using an url (you can only get the handles of the matches of the request).
+However, this strategy relies heavily on private remix APIs, which make using this risky.
 
-This leads to waterfall requests (on navigation, first the browser downlaods the next js bundles, then the translations). This means there is a period of time when React shows default translations instead of the right translation value. This is very visible in my demo since I've artificially delayed the retrieval of translations. I find that a bit sad since Remix is especially great at avoiding this particular situation.
+Also, there is no way to instruct remix to wait for the translations before navigating. The translations are loaded in parallel with the loaders, but if the loader response arrives before the translation responses then the default translation text is displayed until the translation request finishes.
+
+Finally, since the server-side i18n instance is constructed in handleRequest, it is not available in the `meta` function of a loader which prevents translation of the meta tags and title.
 
 ## What next ? (no pun intended)
 
-In the current situation, I don't know what I would chose between remix-i18next or my custom solution. Fortunately, I don't have to make that choice right now :)
+This strategy is not really usable right now because of the problems mentioned above. If the translations are very fast and you don't need to translate the title and meta tags, then I guess it can be used. The DX is better in my opinion and this optimizes the loading of translations.
 
-If translation retrieval is very fast and the app is not too big, both solutions are probably viable.
+The problems couls be solved with some evolutions in Remix :
 
-If the app is big, I think I prefer my solution to avoid the network cost of downloading translations several times.
-
-If the translations are slow to retrieve, I prefer remix-i18next because the default translations would be shown for an unacceptable period of time.
-
-But the best of both worlds could be achieved with some evolutions in Remix. I hope they will exist one day (maybe I'll take a shot :) )
-
- - Provide a way to get the handles of next modules when navigating (I don't think it's easy because handles are not necessarily serializable as json)
+ - Provide real introspections API to avoid the use of provate remix APIs (expose route IDs, get next matches in useTransition even if it is incomplete before bundles are not loaded)
  - Provide a way, on the server, to get the handles given a pathname (that way we could do an api route that retrieves the handles of a requested url and computes the needed namespaces server side)
- - AND provide a way to customize the navigation behaviour in the browser. Because even if we can fetch translations in parallel of the loaders, there is no way to be sure that the translations will arrive before the loader data. No waterfall, but potentielly still some incorrect translations (although this could be mitigated with `link rel=preload` tags)
+ - Provide a way to customize the navigation behaviour in the browser. That way we could make the navigation wait for the translation requests)
 
+Remix will probably implement i18n at some point, I hope this experiment will bring some ideas. See remix-run/remix#202
 
 Thanks for reading.

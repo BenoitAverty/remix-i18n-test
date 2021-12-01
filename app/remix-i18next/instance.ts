@@ -91,24 +91,6 @@ export async function createClientInstance(options: ClientInstanceOptions): Prom
 
     await i18next
         .use(initReactI18next)
-        .use({
-            type: "backend",
-            init(): void {
-            },
-            read(language: string, namespace: string, callback: ReadCallback): void {
-                console.log("needs translations", language, namespace);
-                if(data[namespace]) {
-                    callback(null, data[namespace])
-                }
-                else {
-                    console.debug("Not present in ssr bundle, fetching...")
-                    fetch(options.translationsEndpoint(language, namespace))
-                        .then(resp => resp.json())
-                        .then(bundle => callback(null, bundle))
-                        .catch(err => callback(err, null))
-                }
-            }
-        })
         .init({
             // TODO : some of this needs to be extracted as options.
             supportedLngs: ["en", "fr"],
@@ -119,5 +101,10 @@ export async function createClientInstance(options: ClientInstanceOptions): Prom
                 useSuspense: false
             }
         })
+
+    Object.entries(data).forEach(([ns, bundle]) => {
+        i18next.addResourceBundle(language, ns, bundle);
+    })
+    
     return { i18n: i18next, language: language };
 }
