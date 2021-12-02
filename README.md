@@ -2,6 +2,8 @@
 
 This is a remix experiment for a great i18n solution.
 
+⚠️ The master branch uses remix-i18next. For the custom solution, please see the `custom-i18next-solution` branch.
+
 ## Motivation
 
 About a year ago, I worked on a Next.js app with the following requirements for internationalization :
